@@ -49,37 +49,15 @@ connectDB();
 const db = client.db('users');
 const userCollection = db.collection('users');
 
-// Passport GitHub OAuth Strategy
-passport.use(
-  new GitHubStrategy(
-    {
-      clientID: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      callbackURL: process.env.GITHUB_CALLBACK_URL!,
-    },
-    async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: any) => void) => {
-      try {
-        const existingUser = await userCollection.findOne({ githubId: profile.id });
+// Session and Passport setup
+app.use(session({
+  secret: process.env.SESSION_SECRET!,
+  resave: false,
+  saveUninitialized: false,
+}));
 
-        if (existingUser) {
-          return done(null, existingUser);
-        }
-
-        const newUser = {
-          githubId: profile.id,
-          username: profile.username,
-          email: profile._json.email || 'No public email',
-        };
-
-        const result = await userCollection.insertOne(newUser);
-        const newUserWithId = await userCollection.findOne({ _id: result.insertedId });
-        done(null, newUserWithId);
-      } catch (error) {
-        done(error);
-      }
-    }
-  )
-);
+app.use(passport.initialize());
+app.use(passport.session());
 
 passport.serializeUser((user: any, done) => {
   done(null, user._id);
@@ -89,57 +67,62 @@ passport.deserializeUser(async (id: string, done) => {
   try {
     const user = await userCollection.findOne({ _id: new ObjectId(id) });
     done(null, user);
-  } catch (error) {
-    done(error);
+  } catch (err) {
+    done(err, null);
   }
 });
 
-// Session setup
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET!,
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-      secure: false, // Set to true in production with HTTPS
-      httpOnly: true,
-    },
-  })
-);
+// GitHub OAuth setup
+passport.use(new GitHubStrategy({
+  clientID: process.env.GITHUB_CLIENT_ID!,
+  clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+  callbackURL: `${process.env.SERVER_URL}/auth/github/callback`,
+  scope: ['user:email', 'repo']
+}, async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: any) => void) => {
+  try {
+    const email = profile.emails?.[0]?.value || 'Private';
+    const existingUser = await userCollection.findOne({ githubId: profile.id });
 
-app.use(passport.initialize());
-app.use(passport.session());
+    if (existingUser) {
+      return done(null, existingUser);
+    } else {
+      const newUser = {
+        username: profile.username,
+        email,
+        githubId: profile.id,
+      };
+      const result = await userCollection.insertOne(newUser);
+      const newUserWithId = await userCollection.findOne({ _id: result.insertedId });
+      return done(null, newUserWithId);
+    }
+  } catch (err) {
+    return done(err);
+  }
+}));
 
 // Routes
+app.get('/auth/github', passport.authenticate('github'));
 
-// GitHub login route
-app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+app.get('/auth/github/callback', passport.authenticate('github', {
+  failureRedirect: '/login',
+  successRedirect: process.env.CLIENT_URL,
+}));
 
-// GitHub callback route
-app.get(
-  '/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: '/' }),
-  (req: Request, res: Response) => {
-    res.redirect('http://localhost:5173/');
+app.get('/auth/user', (req: Request, res: Response) => {
+  if (req.isAuthenticated()) {
+    res.json(req.user);
+  } else {
+    res.status(401).json({ message: 'Not authenticated' });
   }
-);
-
-app.get('/profile', (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: 'Not authenticated' });
-  }
-  res.json(req.user);
 });
 
-// Logout route
-app.get('/logout', (req: Request, res: Response) => {
+app.post('/auth/logout', (req: Request, res: Response) => {
   req.logout((err) => {
-    if (err) return res.status(500).json({ message: 'Logout error', err });
-    res.json({ message: 'Logged out successfully' });
+    if (err) {
+      return res.status(500).json({ message: 'Logout failed' });
+    }
+    res.json({ message: 'Logout successful' });
   });
 });
-
-
-
 
 export default app;
