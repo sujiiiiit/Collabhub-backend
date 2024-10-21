@@ -1,10 +1,10 @@
-import express, { Request, Response } from 'express';
-import { MongoClient, ServerApiVersion, ObjectId } from 'mongodb';
-import dotenv from 'dotenv';
-import passport from 'passport';
-import { Strategy as GitHubStrategy } from 'passport-github2';
-import session from 'express-session';
-import cors from 'cors';
+import express, { Request, Response } from "express";
+import { MongoClient, ServerApiVersion, ObjectId } from "mongodb";
+import dotenv from "dotenv";
+import passport from "passport";
+import { Strategy as GitHubStrategy } from "passport-github2";
+import session from "express-session";
+import cors from "cors";
 
 dotenv.config();
 
@@ -15,8 +15,8 @@ app.use(express.json());
 app.use(
   cors({
     origin: process.env.CLIENT_URL, // Update with your frontend URL
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type,Authorization',
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    allowedHeaders: "Content-Type,Authorization",
     credentials: true,
   })
 );
@@ -24,7 +24,7 @@ app.use(
 // MongoDB connection setup
 const uri = process.env.MONGODB_URI;
 if (!uri) {
-  throw new Error('MONGODB_URI is not defined');
+  throw new Error("MONGODB_URI is not defined");
 }
 const client = new MongoClient(uri, {
   serverApi: {
@@ -37,24 +37,26 @@ const client = new MongoClient(uri, {
 const connectDB = async () => {
   try {
     await client.connect();
-    console.log('MongoDB connected');
+    console.log("MongoDB connected");
   } catch (err) {
-    console.error('MongoDB connection error:', err);
+    console.error("MongoDB connection error:", err);
     process.exit(1);
   }
 };
 
 connectDB();
 
-const db = client.db('users');
-const userCollection = db.collection('users');
+const db = client.db("users");
+const userCollection = db.collection("users");
 
 // Session and Passport setup
-app.use(session({
-  secret: process.env.SESSION_SECRET!,
-  resave: false,
-  saveUninitialized: false,
-}));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET!,
+    resave: false,
+    saveUninitialized: false,
+  })
+);
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -73,56 +75,100 @@ passport.deserializeUser(async (id: string, done) => {
 });
 
 // GitHub OAuth setup
-passport.use(new GitHubStrategy({
-  clientID: process.env.GITHUB_CLIENT_ID!,
-  clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-  callbackURL: `${process.env.SERVER_URL}/auth/github/callback`,
-  scope: ['user:email', 'repo']
-}, async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: any) => void) => {
-  try {
-    const email = profile.emails?.[0]?.value || 'Private';
-    const existingUser = await userCollection.findOne({ githubId: profile.id });
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      callbackURL: `${process.env.SERVER_URL}/auth/github/callback`,
+      scope: ["user:email", "repo"],
+    },
+    async (
+      accessToken: string,
+      refreshToken: string,
+      profile: any,
+      done: (error: any, user?: any) => void
+    ) => {
+      try {
+        const email = profile.emails?.[0]?.value || "Private";
+        const existingUser = await userCollection.findOne({
+          githubId: profile.id,
+        });
 
-    if (existingUser) {
-      return done(null, existingUser);
-    } else {
-      const newUser = {
-        username: profile.username,
-        email,
-        githubId: profile.id,
-      };
-      const result = await userCollection.insertOne(newUser);
-      const newUserWithId = await userCollection.findOne({ _id: result.insertedId });
-      return done(null, newUserWithId);
+        if (existingUser) {
+          return done(null, existingUser);
+        } else {
+          const newUser = {
+            username: profile.username,
+            email,
+            githubId: profile.id,
+            accessToken, // store access token for fetching repos later
+          };
+
+          const result = await userCollection.insertOne(newUser);
+          const newUserWithId = await userCollection.findOne({
+            _id: result.insertedId,
+          });
+          return done(null, newUserWithId);
+        }
+      } catch (err) {
+        return done(err);
+      }
     }
-  } catch (err) {
-    return done(err);
-  }
-}));
+  )
+);
 
 // Routes
-app.get('/auth/github', passport.authenticate('github'));
+app.get("/auth/github", passport.authenticate("github"));
 
-app.get('/auth/github/callback', passport.authenticate('github', {
-  failureRedirect: '/login',
-  successRedirect: process.env.CLIENT_URL,
-}));
+app.get(
+  "/auth/github/callback",
+  passport.authenticate("github", {
+    failureRedirect: "/login",
+    successRedirect: process.env.CLIENT_URL,
+  })
+);
 
-app.get('/auth/user', (req: Request, res: Response) => {
+app.get("/auth/user", (req: Request, res: Response) => {
   if (req.isAuthenticated()) {
     res.json(req.user);
   } else {
-    res.status(401).json({ message: 'Not authenticated' });
+    res.status(401).json({ message: "Not authenticated" });
   }
 });
 
-app.post('/auth/logout', (req: Request, res: Response) => {
+app.post("/auth/logout", (req: Request, res: Response) => {
   req.logout((err) => {
     if (err) {
-      return res.status(500).json({ message: 'Logout failed' });
+      return res.status(500).json({ message: "Logout failed" });
     }
-    res.json({ message: 'Logout successful' });
+    res.json({ message: "Logout successful" });
   });
+});
+
+// Add this route to app.ts
+
+app.get("/auth/github/repos", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated() || !req.user) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const accessToken = (req.user as any).accessToken; // assuming you're saving the accessToken when user logs in
+
+  // console.log(accessToken)
+
+  try {
+    const response = await fetch("https://api.github.com/user/repos", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    const repos = await response.json();
+    res.json(repos);
+  } catch (err) {
+    console.error("Error fetching repos:", err);
+    res.status(500).json({ message: "Failed to fetch repositories" });
+  }
 });
 
 export default app;
