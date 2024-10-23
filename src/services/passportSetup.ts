@@ -37,6 +37,10 @@ passport.use(
         });
 
         if (existingUser) {
+          await userCollection.updateOne(
+            { githubId: profile.id },
+            { $set: { accessToken } }
+          );
           return done(null, existingUser);
         } else {
           const newUser = {

@@ -23,6 +23,7 @@ export const fetchUserRepos = async (req: Request, res: Response) => {
   }
 
   const accessToken = (req.user as any).accessToken;
+  console.log("accessToken", accessToken);
 
   try {
     const response = await fetch("https://api.github.com/user/repos", {

@@ -5,21 +5,27 @@ export const createRole = async (req: Request, res: Response) => {
   try {
     const {
       pName,
+      repoLink,
       techStack,
       techPublic,
       roles,
       address,
       description,
+      duration,
+      deadline,
       userId,
     } = req.body;
 
     const newRole = {
       pName,
+      repoLink,
       techStack,
       techPublic,
       roles,
       address,
       description,
+      duration,
+      deadline,
       userId,
     };
 
