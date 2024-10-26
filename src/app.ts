@@ -9,6 +9,7 @@ import authRoutes from "./routes/authRoutes";
 import roleRoutes from "./routes/roleRoutes";
 import rolePostRoutes from "./routes/rolePostRoutes";
 import userRoutes from "./routes/userRoutes";
+import techRotes from "./routes/techRoutes";
 
 dotenv.config();
 connectDB();
@@ -34,6 +35,7 @@ app.use("/auth", authRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/rolepost", rolePostRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/techstack", techRotes);
 
 
 export default app;
