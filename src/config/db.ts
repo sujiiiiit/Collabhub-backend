@@ -29,3 +29,4 @@ export const userCollection = db.collection("user");
 export const rolePostCollection = db.collection("rolePost");
 export const roleCollection = db.collection("roles");
 export const techCollection = db.collection("techstacks");
+export const applicationCollection = db.collection("applications");
