@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { applicationCollection } from "../config/db"; // Assuming applicationCollection is initialized
 import { format } from "date-fns";
+import { ObjectId } from "mongodb";
 
 // Route to submit an application
 export const submitApplication = async (req: Request, res: Response) => {
@@ -14,13 +15,13 @@ export const submitApplication = async (req: Request, res: Response) => {
     }
 
     const newApplication = {
-      userId,
-      rolePostId,
+      userId: new ObjectId(userId),
+      rolePostId: new ObjectId(rolePostId),
       message,
       resume: {
-      data: req.file.buffer.toString('base64'), // Convert binary file to base64 string
-      contentType: req.file.mimetype, // Store the MIME type of the file
-      filename: req.file.originalname // Store the original filename
+        data: req.file.buffer.toString("base64"), // Convert binary file to base64 string
+        contentType: req.file.mimetype, // Store the MIME type of the file
+        filename: req.file.originalname, // Store the original filename
       },
       appliedOn: createdAt,
     };
@@ -51,5 +52,46 @@ export const getApplicationsByUser = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching applications:", error);
     res.status(500).json({ message: "Failed to fetch applications" });
+  }
+};
+
+export const getApplicationById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const application = await applicationCollection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    res.status(200).json(application);
+  } catch (error) {
+    console.error("Error fetching application:", error);
+    res.status(500).json({ message: "Failed to fetch application" });
+  }
+};
+
+export const hasUserAppliedForRole = async (req: Request, res: Response) => {
+  const { userId, rolePostId } = req.query;
+
+  try {
+    const existingApplication = await applicationCollection.findOne({
+      userId: userId,
+      rolePostId: rolePostId,
+    });
+
+    console.log("existingApplication", existingApplication);
+
+    if (existingApplication) {
+      return res.status(200).json({ applied: true });
+    }
+
+    res.status(200).json({ applied: false });
+  } catch (err) {
+    console.error("Error checking application status:", err);
+    res.status(500).json({ error: "Failed to check application status" });
   }
 };
