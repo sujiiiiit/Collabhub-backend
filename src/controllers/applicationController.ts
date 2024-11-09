@@ -6,7 +6,7 @@ import { ObjectId } from "mongodb";
 // Route to submit an application
 export const submitApplication = async (req: Request, res: Response) => {
   try {
-    const { message, userId, rolePostId } = req.body;
+    const { message, username, rolePostId } = req.body;
     const createdAt = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"); // Timestamp
 
     // Check if file is uploaded
@@ -15,8 +15,8 @@ export const submitApplication = async (req: Request, res: Response) => {
     }
 
     const newApplication = {
-      userId: new ObjectId(userId),
-      rolePostId: new ObjectId(rolePostId),
+      username: username,
+      rolePostId: String(rolePostId),
       message,
       resume: {
         data: req.file.buffer.toString("base64"), // Convert binary file to base64 string
@@ -74,24 +74,26 @@ export const getApplicationById = async (req: Request, res: Response) => {
   }
 };
 
-export const hasUserAppliedForRole = async (req: Request, res: Response) => {
-  const { userId, rolePostId } = req.query;
-
+export const hasUserAppliedForRole = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const existingApplication = await applicationCollection.findOne({
-      userId: userId,
+    const { username, rolePostId } = req.params;
+
+    const application = await applicationCollection.findOne({
+      username: username,
       rolePostId: rolePostId,
     });
-
-    console.log("existingApplication", existingApplication);
-
-    if (existingApplication) {
+    if (application) {
       return res.status(200).json({ applied: true });
+    } else {
+      return res.status(404).json({ applied: false });
     }
 
-    res.status(200).json({ applied: false });
-  } catch (err) {
-    console.error("Error checking application status:", err);
-    res.status(500).json({ error: "Failed to check application status" });
+    res.status(200).json(application);
+  } catch (error) {
+    console.error("Error fetching application:", error);
+    res.status(500).json({ message: "Failed to fetch application" });
   }
 };

@@ -10,6 +10,6 @@ router.post("/:id", getApplicationById);
 
 // Route to get applications by a specific user
 router.get("/user/:userId", getApplicationsByUser);
-router.get("/check", hasUserAppliedForRole);
+router.get("/check/:username/:rolePostId", hasUserAppliedForRole);
 
 export default router;
