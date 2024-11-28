@@ -1,5 +1,6 @@
 import multer from 'multer';
 import { Request, Response, NextFunction } from 'express';
+import path from 'path';
 
 // Configure multer for PDF file uploads
 const upload = multer({

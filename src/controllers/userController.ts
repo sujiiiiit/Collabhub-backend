@@ -34,8 +34,8 @@ export const getUserById = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const { _id, username } = user;
-    res.status(200).json({ userId: _id, username });
+    const { _id, username,applied } = user;
+    res.status(200).json({ userId: _id, username,applied });
   } catch (err) {
     console.error("Error fetching user:", err);
     res.status(500).json({ error: "Failed to fetch user" });

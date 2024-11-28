@@ -5,9 +5,9 @@ import { publicMiddleware } from "../middleware/publicMiddleware";
 const router = Router();
 
 router.get("/", publicMiddleware, getAllRolePosts); // Make getAllRolePosts public
-router.get("/:id", getRolePostById);
+router.get("/id/:id", getRolePostById);
 router.post("/", createRolePost);
-router.post("/user/:userId", getRolePostsByUserId);
+router.get("/user/:userId", getRolePostsByUserId);
 
 
 export default router;

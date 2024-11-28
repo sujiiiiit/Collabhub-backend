@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { rolePostCollection } from "../config/db";
+import { rolePostCollection, userCollection } from "../config/db";
 import { ObjectId } from "mongodb";
-import { format } from "date-fns"; 
+import { format } from "date-fns";
 
 export const createRolePost = async (req: Request, res: Response) => {
   try {
@@ -37,20 +37,15 @@ export const createRolePost = async (req: Request, res: Response) => {
 
     const result = await rolePostCollection.insertOne(newRole);
 
-    res
-      .status(201)
-      .json({
-        message: "Role created successfully",
-        roleId: result.insertedId,
-      });
+    res.status(201).json({
+      message: "Role created successfully",
+      roleId: result.insertedId,
+    });
   } catch (error) {
     console.error("Error inserting role:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
-
-
 
 export const getAllRolePosts = async (req: Request, res: Response) => {
   try {
@@ -58,7 +53,7 @@ export const getAllRolePosts = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
-    
+
     // Extract filtering parameters from the query
     const { userId, techStack, roles } = req.query;
 
@@ -77,15 +72,17 @@ export const getAllRolePosts = async (req: Request, res: Response) => {
       .toArray();
 
     // Transform the data as required
-    const response = rolePosts.map(({ _id, userId, techPublic, techStack, roles,address,createdAt }) => ({
-      id: _id,
-      userId,
-      techPublic,
-      ...(techPublic ? { techStack: techStack } : {}),
-      roles,
-      address,
-      createdAt,
-    }));
+    const response = rolePosts.map(
+      ({ _id, userId, techPublic, techStack, roles, address, createdAt }) => ({
+        id: _id,
+        userId,
+        techPublic,
+        ...(techPublic ? { techStack: techStack } : {}),
+        roles,
+        address,
+        createdAt,
+      })
+    );
 
     res.status(200).json(response);
   } catch (err) {
@@ -94,28 +91,35 @@ export const getAllRolePosts = async (req: Request, res: Response) => {
   }
 };
 
-
-
-
-
 export const getRolePostById = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    const rolePost = await rolePostCollection.findOne({ _id: new ObjectId(id) });
+    const rolePost = await rolePostCollection.findOne({
+      _id: new ObjectId(id),
+    });
 
     if (!rolePost) {
       return res.status(404).json({ error: "Role post not found" });
     }
 
-    const { _id, userId, repoLink, description, techPublic, techStack, roles, address } = rolePost;
+    const {
+      _id,
+      userId,
+      repoLink,
+      description,
+      techPublic,
+      techStack,
+      roles,
+      address,
+    } = rolePost;
     const response = {
       id: _id,
       userId,
       repoLink,
       description,
       address, // Include address directly
-      roles,   // Include roles directly
+      roles, // Include roles directly
       ...(techPublic ? { techStack } : {}), // Include techStack only if techPublic is true
     };
 
@@ -126,27 +130,23 @@ export const getRolePostById = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getRolePostsByUserId = async (req: Request, res: Response) => {
   const { userId } = req.params;
 
   try {
     const rolePosts = await rolePostCollection.find({ userId }).toArray();
-
+    const userDetail = await userCollection.findOne({
+      _id: new ObjectId(userId),
+    });
     if (!rolePosts.length) {
-      return res.status(404).json({ error: "No role posts found for this user" });
+      return res
+        .status(404)
+        .json({ error: "No role posts found for this user" });
     }
 
-    const response = rolePosts.map(({ _id, pName, repoLink, techStack, techPublic, roles, address, description, duration, deadline, createdAt }) => ({
+    const response = rolePosts.map(({ _id, roles, deadline, createdAt }) => ({
       id: _id,
-      pName,
-      repoLink,
-      techStack,
-      techPublic,
       roles,
-      address,
-      description,
-      duration,
       deadline,
       createdAt,
     }));
