@@ -38,3 +38,13 @@ export const fetchUserRepos = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to fetch repositories" });
   }
 };
+
+
+export const getAccessToken = (req: Request, res: Response) => {
+  if (req.isAuthenticated() && req.user) {
+    const accessToken = (req.user as any).accessToken;
+    res.json({ accessToken });
+  } else {
+    res.status(401).json({ message: "Not authenticated" });
+  }
+};

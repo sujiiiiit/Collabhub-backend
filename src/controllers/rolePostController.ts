@@ -157,3 +157,46 @@ export const getRolePostsByUserId = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to fetch role posts by user" });
   }
 };
+
+export const updateRolePostById = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const {
+    pName,
+    repoLink,
+    techStack,
+    techPublic,
+    roles,
+    address,
+    description,
+    duration,
+    deadline,
+  } = req.body;
+
+  try {
+    const result = await rolePostCollection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          pName,
+          repoLink,
+          techStack,
+          techPublic,
+          roles,
+          address,
+          description,
+          duration,
+          deadline,
+        },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: "Role post not found" });
+    }
+
+    res.status(200).json({ message: "Role post updated successfully" });
+  } catch (err) {
+    console.error("Error updating role post:", err);
+    res.status(500).json({ error: "Failed to update role post" });
+  }
+};
