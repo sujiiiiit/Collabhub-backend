@@ -6,7 +6,7 @@ import { ObjectId } from "mongodb";
 // Route to submit an application
 export const submitApplication = async (req: Request, res: Response) => {
   try {
-    const { message, username, rolePostId,role } = req.body;
+    const { message, username, rolePostId,role,createdBy } = req.body;
     const createdAt = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"); // Timestamp
 
     // Check if file is uploaded
@@ -16,6 +16,7 @@ export const submitApplication = async (req: Request, res: Response) => {
 
     const newApplication = {
       username: username,
+      createdBy,
       rolePostId: String(rolePostId),
       message,
       role,
@@ -139,15 +140,14 @@ export const hasUserAppliedForRole = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getApplicationsByRolePostId = async (req: Request, res: Response) => {
   try {
     const { rolePostId } = req.params;
 
-    const applications = await applicationCollection.find({ rolePostId: rolePostId }).toArray();
+    const applications = await applicationCollection.find({ rolePostId: { $regex: `^${rolePostId}` } }).toArray();
 
     if (!applications.length) {
-      return res.status(500).json({ message: "No applications found for this role post" });
+      return res.status(404).json({ message: "No applications found for this role post" });
     }
 
     const response = applications.map(application => ({
@@ -166,5 +166,61 @@ export const getApplicationsByRolePostId = async (req: Request, res: Response) =
     res.status(500).json({ message: "Failed to fetch applications" });
   }
 };
+
+export const getApplicationsByRolePostIdandUserId = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const applications = await applicationCollection.find({
+      createdBy: userId
+    }).toArray();
+
+    if (!applications.length) {
+      return res.status(404).json({ message: "No applications found for this role post and user" });
+    }
+
+    const response = applications.map(application => ({
+      id: application._id,
+      username: application.username,
+      rolePostId: application.rolePostId,
+      message: application.message,
+      appliedOn: application.appliedOn,
+      status: application.status,
+      role: application.role,
+    }));
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Error fetching applications:", error);
+    res.status(500).json({ message: "Failed to fetch applications" });
+  }
+};
+
+
+export const updateApplicationStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["accepted", "rejected", "pending"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const result = await applicationCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { status } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    return res.status(200).json({ message: "Application status updated successfully" });
+  } catch (error) {
+    console.error("Error updating application status:", error);
+    return res.status(500).json({ message: "Failed to update application status" });
+  }
+};
+
 
 
