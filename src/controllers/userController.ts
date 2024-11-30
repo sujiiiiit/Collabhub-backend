@@ -41,3 +41,22 @@ export const getUserById = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to fetch user" });
   }
 };
+
+// In backend/src/controllers/userController.ts
+export const getUserByUsername = async (req: Request, res: Response) => {
+  try {
+    const { username } = req.params;
+
+    const user = await userCollection.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const { _id, username: name,email } = user;
+    res.status(200).json({ _id, username: name,email });
+  } catch (err) {
+    console.error("Error fetching user:", err);
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+};

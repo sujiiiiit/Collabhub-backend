@@ -51,7 +51,7 @@ export const getAllRolePosts = async (req: Request, res: Response) => {
   try {
     // Get page and filter parameters from query
     const page = parseInt(req.query.page as string) || 1;
-    const limit = 10;
+    const limit = 30;
     const skip = (page - 1) * limit;
 
     // Extract filtering parameters from the query
